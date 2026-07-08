@@ -3,7 +3,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional
 import os
 import uuid
-from datetime import datetime
+from psycopg2.extras import RealDictCursor
+from datetime import datetime, timedelta
 
 from app.auth.auth import auth_service
 from app.auth.admin_auth import admin_auth_service
@@ -117,67 +118,6 @@ async def register_user(request: SignUpModel):
             status_code=400,
             detail=result
         )
-    
-    # Add a free trial subscription for new users
-    try:
-        user_id = result['user']['id']
-        
-        # Create a free trial subscription in the database
-        conn = auth_service.get_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Check if there's a free plan, or create a trial entry
-        cursor.execute("SELECT id FROM subscription_plans WHERE price = 0 LIMIT 1")
-        free_plan = cursor.fetchone()
-        
-        if free_plan:
-            plan_id = free_plan['id']
-        else:
-            # Create a free trial plan if it doesn't exist
-            cursor.execute('''
-                INSERT INTO subscription_plans 
-                (plan_name, plan_description, price, currency, duration_days, 
-                 max_websites, max_chat_messages, max_uploads, features, is_active)
-                VALUES ('Free Trial', '1 free website trial', 0, 'INR', 30, 1, 100, 5, 
-                       '["1 free website", "100 chat messages", "5 file uploads", "Basic support"]'::jsonb, TRUE)
-                RETURNING id
-            ''')
-            plan_id = cursor.fetchone()['id']
-        
-        # Set trial end date (30 days from now)
-        trial_end_date = datetime.now() + timedelta(days=30)
-        
-        # Insert trial subscription
-        cursor.execute('''
-            INSERT INTO user_subscriptions 
-            (user_id, plan_id, payment_id, amount_paid, currency, 
-             payment_status, subscription_status, end_date, sent_reminders)
-            VALUES (%s, %s, %s, 0, 'INR', 'completed', 'active', %s, '')
-        ''', (user_id, plan_id, f"trial_{user_id}_{int(datetime.now().timestamp())}", trial_end_date))
-        
-        # Update user with subscription plan
-        cursor.execute('''
-            UPDATE users 
-            SET subscription_plan = 'Free Trial',
-                subscription_end_date = %s
-            WHERE id = %s
-        ''', (trial_end_date, user_id))
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
-        print(f" Added free trial for new user: {request.email}")
-        result['trial'] = {
-            'active': True,
-            'end_date': trial_end_date.isoformat(),
-            'max_websites': 1,
-            'message': 'You have 1 free website trial for 30 days'
-        }
-        
-    except Exception as e:
-        print(f"  Error adding free trial: {e}")
-        # Continue even if trial creation fails
     
     return result
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from datetime import datetime
-
+from psycopg2.extras import RealDictCursor
 from app.database.database import db_manager
 from app.services.email_service import email_service
 from .auth import get_current_user

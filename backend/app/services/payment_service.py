@@ -406,107 +406,70 @@ class PaymentService:
             return False
     
     def check_subscription_active(self, user_id: int) -> Dict[str, Any]:
-        """Check if user has an active subscription"""
+        """Check if user has an active paid subscription"""
+
+        conn = None
+        cursor = None
+
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
-            cursor.execute('''
+
+            cursor.execute("""
                 SELECT us.*, sp.plan_name, sp.price, sp.duration_days,
                     sp.max_websites, sp.max_chat_messages, sp.max_uploads,
                     sp.features,
-                    CASE 
+                    CASE
                         WHEN us.end_date IS NULL THEN 999
                         ELSE EXTRACT(EPOCH FROM (us.end_date - CURRENT_TIMESTAMP)) / 60
-                    END as minutes_remaining
+                    END AS minutes_remaining
                 FROM user_subscriptions us
                 JOIN subscription_plans sp ON us.plan_id = sp.id
-                WHERE us.user_id = %s 
+                WHERE us.user_id = %s
                 AND us.payment_status = 'completed'
                 AND us.subscription_status = 'active'
                 AND (us.end_date IS NULL OR us.end_date > CURRENT_TIMESTAMP)
                 ORDER BY us.end_date DESC
                 LIMIT 1
-            ''', (user_id,))
-            
+            """, (user_id,))
+
             subscription = cursor.fetchone()
-            
-            cursor.close()
-            conn.close()
-            
+
             if subscription:
-                minutes_remaining = subscription.get('minutes_remaining', 0)
-                # Ensure minutes_remaining is a number
-                if isinstance(minutes_remaining, str):
-                    try:
-                        minutes_remaining = float(minutes_remaining)
-                    except:
-                        minutes_remaining = 0
-                
-                is_active = minutes_remaining > 0 or subscription.get('end_date') is None
-                
+                minutes_remaining = subscription.get("minutes_remaining", 0)
+
+                try:
+                    minutes_remaining = float(minutes_remaining)
+                except (TypeError, ValueError):
+                    minutes_remaining = 0
+
+                is_active = (
+                    subscription.get("end_date") is None
+                    or minutes_remaining > 0
+                )
+
                 return {
                     "success": True,
                     "has_subscription": True,
                     "is_active": is_active,
                     "subscription": subscription,
-                    "minutes_remaining": int(minutes_remaining) if minutes_remaining > 0 else 0
+                    "minutes_remaining": int(minutes_remaining)
+                    if minutes_remaining > 0 else 0
                 }
-            else:
-                # Check if user has a free trial
-                cursor.execute('''
-                    SELECT us.*, sp.plan_name, sp.price, sp.duration_days,
-                        sp.max_websites, sp.max_chat_messages, sp.max_uploads,
-                        sp.features,
-                        CASE 
-                            WHEN us.end_date IS NULL THEN 999
-                            ELSE EXTRACT(EPOCH FROM (us.end_date - CURRENT_TIMESTAMP)) / 60
-                        END as minutes_remaining
-                    FROM user_subscriptions us
-                    JOIN subscription_plans sp ON us.plan_id = sp.id
-                    WHERE us.user_id = %s 
-                    AND us.payment_status = 'completed'
-                    AND us.subscription_status = 'active'
-                    AND sp.price = 0
-                    ORDER BY us.end_date DESC
-                    LIMIT 1
-                ''', (user_id,))
-                
-                trial = cursor.fetchone()
-                cursor.close()
-                conn.close()
-                
-                if trial:
-                    minutes_remaining = trial.get('minutes_remaining', 0)
-                    if isinstance(minutes_remaining, str):
-                        try:
-                            minutes_remaining = float(minutes_remaining)
-                        except:
-                            minutes_remaining = 0
-                    
-                    is_active = minutes_remaining > 0
-                    
-                    return {
-                        "success": True,
-                        "has_subscription": True,
-                        "is_active": is_active,
-                        "subscription": trial,
-                        "minutes_remaining": int(minutes_remaining) if minutes_remaining > 0 else 0,
-                        "is_trial": True
-                    }
-                
-                return {
-                    "success": True,
-                    "has_subscription": False,
-                    "is_active": False,
-                    "subscription": None,
-                    "minutes_remaining": 0
-                }
-                
+
+            return {
+                "success": True,
+                "has_subscription": False,
+                "is_active": False,
+                "subscription": None,
+                "minutes_remaining": 0
+            }
+
         except Exception as e:
-            print(f"  Check subscription error: {e}")
+            print(f"❌ Check subscription error: {e}")
             import traceback
             traceback.print_exc()
+
             return {
                 "success": False,
                 "error": str(e),
@@ -514,6 +477,12 @@ class PaymentService:
                 "is_active": False,
                 "minutes_remaining": 0
             }
+
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
     
     def get_user_subscription(self, user_id: int) -> Dict[str, Any]:
         """Get user's active subscription"""
