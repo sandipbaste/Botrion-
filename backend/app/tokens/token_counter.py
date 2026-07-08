@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -8,7 +7,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 import threading
-import socket
 
 load_dotenv()
 
@@ -16,11 +14,14 @@ class TokenCounter:
     def __init__(self):
         # Database connection - PostgreSQL
         self.host = os.getenv('DB_HOST')
-        self.port = int(os.getenv('DB_PORT'))
+        self.port = int(os.getenv('DB_PORT', '5432'))
         self.user = os.getenv('DB_USER')
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
-        self.schema = os.getenv('DB_SCHEMA')
+        self.schema = os.getenv('DB_SCHEMA', 'public')
+        
+        # ✅ FIX: Initialize connection_pool as None
+        self.connection_pool = None
         
         # Token estimation rates
         self.INPUT_TOKEN_RATE = 0.00000015
@@ -72,7 +73,8 @@ class TokenCounter:
         """Release connection back to pool"""
         if conn:
             try:
-                if self.connection_pool:
+                # ✅ FIX: Check if connection_pool exists
+                if hasattr(self, 'connection_pool') and self.connection_pool:
                     self.connection_pool.putconn(conn)
                 else:
                     conn.close()
@@ -129,10 +131,6 @@ class TokenCounter:
         thread = threading.Thread(target=cleanup_old_tokens, daemon=True)
         thread.start()
     
-    # =========================
-    # TOKEN COUNTING METHODS
-    # =========================
-    
     def count_tokens(self, text: str, model: str = "gpt-4o-mini") -> int:
         """Count tokens using model-specific tokenizer"""
         if not text:
@@ -157,7 +155,7 @@ class TokenCounter:
         model: str = "gpt-4o-mini",
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Track tokens used in a chat interaction - OPTIMIZED (single DB call)"""
+        """Track tokens used in a chat interaction"""
         try:
             input_tokens = self.count_tokens(input_text, model)
             output_tokens = self.count_tokens(output_text, model)
@@ -165,7 +163,6 @@ class TokenCounter:
             input_cost = input_tokens * self.INPUT_TOKEN_RATE
             output_cost = output_tokens * self.OUTPUT_TOKEN_RATE
             
-            # Use a single connection for all operations
             conn = None
             try:
                 conn = self.get_connection()
@@ -203,7 +200,7 @@ class TokenCounter:
                     json.dumps({**(metadata or {}), 'text_preview': output_text[:100]})
                 ))
                 
-                # Update aggregates in one go
+                # Update aggregates
                 self._update_aggregates_fast(cursor, website_id, user_id, input_tokens, output_tokens, 0, 1)
                 
                 conn.commit()
@@ -215,7 +212,7 @@ class TokenCounter:
             finally:
                 if conn:
                     try:
-                        conn.close()
+                        self.release_connection(conn)
                     except:
                         pass
             
@@ -456,7 +453,7 @@ class TokenCounter:
         operation_type: str,
         metadata: Optional[Dict[str, Any]] = None
     ):
-        """Save token usage to database - PostgreSQL version with retry"""
+        """Save token usage to database"""
         if tokens == 0:
             return
         
@@ -494,7 +491,7 @@ class TokenCounter:
         training_count: int = 0,
         search_count: int = 0
     ):
-        """Update daily, monthly, and user aggregates - PostgreSQL version with retry"""
+        """Update daily, monthly, and user aggregates"""
         try:
             today = datetime.now().date()
             year_month = today.strftime('%Y-%m')
@@ -634,10 +631,6 @@ class TokenCounter:
             import traceback
             traceback.print_exc()
     
-    # =========================
-    # TOKEN RETRIEVAL METHODS (Keep existing methods)
-    # =========================
-    
     def get_user_websites_token_details(self, user_id: int) -> Dict[str, Any]:
         """Get all websites for a user with their token details"""
         try:
@@ -667,7 +660,6 @@ class TokenCounter:
             
             websites = self.execute_with_retry(_get)
             
-            # Process results...
             overall_totals = {
                 'total_input_tokens': 0,
                 'total_output_tokens': 0,
@@ -724,10 +716,6 @@ class TokenCounter:
                 'success': False,
                 'error': str(e)
             }
-    
-    # =========================
-    # MAINTENANCE METHODS (Keep existing)
-    # =========================
     
     def archive_old_tokens(self, days: int = 90):
         """Archive token usage older than specified days"""
