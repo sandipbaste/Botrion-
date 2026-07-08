@@ -1,0 +1,95 @@
+{
+  "user_info": {
+    "session_id": "86efac38-1519-4ba2-be38-f0dba75a2ba2",
+    "full_name": "aboli",
+    "email": "sandipbaste9999@gmail.com",
+    "mobile": "8989898989",
+    "website_id": "9a100990",
+    "registered_at": "2026-07-04T16:31:25.647054",
+    "conversation_id": "conv_1783162885"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "message": "which services you offer",
+      "timestamp": "2026-07-04T16:32:03.281808"
+    },
+    {
+      "role": "assistant",
+      "message": "We offer a variety of services including:\n\n1. Mobile Application Development\n2. Web Development\n3. Software Development\n4. IoT Solutions\n5. Artificial Intelligence\n6. Project Management\n7. Research & Development\n8. Industrial Training\n9. Digital Marketing\n\nIf you need more details about a specific service, feel free to ask!",
+      "timestamp": "2026-07-04T16:32:18.501051"
+    },
+    {
+      "role": "user",
+      "message": "I want build website in React so furture process",
+      "timestamp": "2026-07-04T16:33:09.716505"
+    },
+    {
+      "role": "assistant",
+      "message": "To build a website in React, the next steps typically involve defining your project requirements, including features and design. Would you like to discuss specific features or functionalities you have in mind for your website?",
+      "timestamp": "2026-07-04T16:33:20.909592"
+    },
+    {
+      "role": "user",
+      "message": "ya I have some ideas in my mind",
+      "timestamp": "2026-07-04T16:33:51.537845"
+    },
+    {
+      "role": "assistant",
+      "message": "Let's collaborate and bring your vision to life with our expert team. Could you share what type of project you have in mind? Is it for a web application, mobile app, or something else?",
+      "timestamp": "2026-07-04T16:34:01.609554"
+    },
+    {
+      "role": "user",
+      "message": "AI app",
+      "timestamp": "2026-07-04T16:34:18.790641"
+    },
+    {
+      "role": "assistant",
+      "message": "We offer various AI applications, including intelligent document generation with DocVeera, which helps eliminate manual paperwork by automatically generating documents. If you have specific features or requirements in mind for an AI app, please share!",
+      "timestamp": "2026-07-04T16:34:29.689489"
+    },
+    {
+      "role": "user",
+      "message": "i want build fanancial audit systemusing AI",
+      "timestamp": "2026-07-04T16:35:30.197298"
+    },
+    {
+      "role": "assistant",
+      "message": "To build a financial audit system using AI, it's essential to define specific features you need. What functionalities are you looking for? For example, do you need data analysis, reporting, or fraud detection capabilities?",
+      "timestamp": "2026-07-04T16:35:41.292979"
+    },
+    {
+      "role": "user",
+      "message": "ya",
+      "timestamp": "2026-07-04T16:35:55.546827"
+    },
+    {
+      "role": "assistant",
+      "message": "How can I assist you today? If you have any questions about our services or products, feel free to ask!",
+      "timestamp": "2026-07-04T16:36:05.851217"
+    },
+    {
+      "role": "user",
+      "message": "ok definetly",
+      "timestamp": "2026-07-04T16:36:24.287569"
+    },
+    {
+      "role": "assistant",
+      "message": "Thank you for your response! If you have any specific questions or need information about our services, feel free to ask. I'm here to help!",
+      "timestamp": "2026-07-04T16:36:35.689633"
+    },
+    {
+      "role": "user",
+      "message": "how to contact with you",
+      "timestamp": "2026-07-04T16:36:53.664550"
+    },
+    {
+      "role": "assistant",
+      "message": "You can contact us through the enquiry form on our website. For detailed discussions, please fill out the form, and our team will get in touch with you shortly.",
+      "timestamp": "2026-07-04T16:37:05.243015"
+    }
+  ],
+  "created_at": "2026-07-04T16:31:25.647054",
+  "last_active": "2026-07-04T16:36:53.664550"
+}

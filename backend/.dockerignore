@@ -1,0 +1,32 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.env
+.git
+.gitignore
+.venv
+venv
+ENV
+env
+# data/        # Comment this out
+# uploads/     # Comment this out
+# generated_scripts/  # Comment this out
+user_sessions/
+*.log
+*.db
+*.sqlite3
+.DS_Store
+.vscode/
+.idea/
+*.md
+.dockerignore
+Dockerfile
+docker-compose.yml
+node_modules/
