@@ -27,7 +27,7 @@ class EmailService:
         self.default_from_email = os.getenv('DEFAULT_FROM_EMAIL')
         
         # Test connection
-        self.test_smtp_connection()
+        # self.test_smtp_connection()
     
     def test_smtp_connection(self):
         """Test SMTP connection"""
@@ -154,7 +154,7 @@ class EmailService:
                     server.login(smtp_username, smtp_password)
                 
                 server.send_message(msg)
-                server.quit()
+                # server.quit()
             
             print(f" Email sent to {to_email}")
             return {"success": True, "message": "Email sent successfully"}

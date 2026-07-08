@@ -16,11 +16,11 @@ class TokenCounter:
     def __init__(self):
         # Database connection - PostgreSQL
         self.host = os.getenv('DB_HOST')
-        self.port = int(os.getenv('DB_PORT', 5432))
+        self.port = int(os.getenv('DB_PORT'))
         self.user = os.getenv('DB_USER')
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
-        self.schema = os.getenv('DB_SCHEMA', 'Botrion')
+        self.schema = os.getenv('DB_SCHEMA')
         
         # Token estimation rates
         self.INPUT_TOKEN_RATE = 0.00000015

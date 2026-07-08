@@ -11,11 +11,11 @@ def test_connection():
     print("=" * 60)
     
     # Use user@project format for pooler
-    host = os.getenv('DB_HOST', 'aws-0-ap-south-1.pooler.supabase.com')
-    port = int(os.getenv('DB_PORT', 6543))
-    user = os.getenv('DB_USER', 'postgres.jkezidrdlxwakrhkaxpk')  # user@project
-    password = os.getenv('DB_PASSWORD', 'gtYsTkmzOH8OV6ml')
-    database = os.getenv('DB_NAME', 'postgres')
+    host = os.getenv('DB_HOST')
+    port = int(os.getenv('DB_PORT'))
+    user = os.getenv('DB_USER')  # user@project
+    password = os.getenv('DB_PASSWORD')
+    database = os.getenv('DB_NAME')
     
     print(f"\n📋 Connection Details:")
     print(f"   Host: {host}")

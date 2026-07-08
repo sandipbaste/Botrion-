@@ -19,16 +19,16 @@ class AuthService:
     def __init__(self):
         self.jwt_secret = os.getenv('JWT_SECRET')
         self.jwt_algorithm = os.getenv('JWT_ALGORITHM')
-        self.jwt_expiry_hours = int(os.getenv('JWT_EXPIRY_HOURS', 24))
-        self.otp_expiry_minutes = int(os.getenv('OTP_EXPIRY_MINUTES', 10))
+        self.jwt_expiry_hours = int(os.getenv('JWT_EXPIRY_HOURS'))
+        self.otp_expiry_minutes = int(os.getenv('OTP_EXPIRY_MINUTES'))
         
         # Database connection
         self.host = os.getenv('DB_HOST')
-        self.port = int(os.getenv('DB_PORT', 5432))
+        self.port = int(os.getenv('DB_PORT'))
         self.user = os.getenv('DB_USER')
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
-        self.schema = os.getenv('DB_SCHEMA', 'Botrion')
+        self.schema = os.getenv('DB_SCHEMA')
         
         try:
             self.initialize_user_tables()

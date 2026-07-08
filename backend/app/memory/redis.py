@@ -182,8 +182,8 @@ class RedisMemory:
             redis_client = redis.from_url(
                 redis_url,
                 decode_responses=True,
-                socket_timeout=5,
-                socket_connect_timeout=5
+                socket_timeout=30,
+                socket_connect_timeout=30
             )
             redis_client.ping()
             print("✅ Redis connected successfully")
