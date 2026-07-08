@@ -45,8 +45,8 @@ except ImportError:
 
 load_dotenv()
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080").rstrip('/')
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip('/')
+BACKEND_URL = os.getenv("BACKEND_URL").rstrip('/')
+FRONTEND_URL = os.getenv("FRONTEND_URL").rstrip('/')
 
 # Create FastAPI app
 app = FastAPI(
@@ -66,7 +66,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "http://192.168.168.187:8080"],
+    allow_origins=["*", "https://botrion-v2.onrender.com"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
