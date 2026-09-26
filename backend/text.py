@@ -56,9 +56,9 @@ def test_connection():
         try:
             # Try with session pooler (direct host, port 5432)
             conn = psycopg2.connect(
-                host="db.jkezidrdlxwakrhkaxpk.supabase.co",
-                port=5432,
-                user="postgres",
+                host=host,
+                port=port,
+                user=user,
                 password=password,
                 database=database,
                 connect_timeout=60,

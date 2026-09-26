@@ -1,6 +1,6 @@
-// Chatbot Widget for Website: jn
-// Website ID: 7e34f1a9
-// Generated on: 2026-07-30T13:50:09.544764
+// Chatbot Widget for Website: Triton Hotel
+// Website ID: ce1f0c44
+// Generated on: 2026-07-30T15:01:55.022730
 // Version: 7.0 - Awesome Next Level Theme
 
 (function() {
@@ -8,12 +8,12 @@
     
     // Modern color scheme
     const config = {
-        websiteId: '7e34f1a9',
+        websiteId: 'ce1f0c44',
         apiUrl: 'http://localhost:8080',
         primaryGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         secondaryGradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
         accentGradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        widgetTitle: 'jn AI Assistant',
+        widgetTitle: 'Triton Hotel AI Assistant',
         showRegistration: true,
         showContactForm: true,
         autoReport: true,

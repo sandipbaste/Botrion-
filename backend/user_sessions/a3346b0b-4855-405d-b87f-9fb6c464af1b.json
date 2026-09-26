@@ -1,0 +1,55 @@
+{
+  "user_info": {
+    "session_id": "a3346b0b-4855-405d-b87f-9fb6c464af1b",
+    "full_name": "Akshay",
+    "email": "akshay@gmail.com",
+    "mobile": "8989898989",
+    "website_id": "ce1f0c44",
+    "registered_at": "2026-07-30T15:21:56.067050",
+    "conversation_id": "conv_1785405116"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "message": "hello",
+      "timestamp": "2026-07-30T15:22:08.565825"
+    },
+    {
+      "role": "assistant",
+      "message": "Hello, Akshay! How can I assist you today?",
+      "timestamp": "2026-07-30T15:22:27.225594"
+    },
+    {
+      "role": "user",
+      "message": "in your hotel have any AC room i want book for 2 days",
+      "timestamp": "2026-07-30T15:22:58.593010"
+    },
+    {
+      "role": "assistant",
+      "message": "Yes, we have AC rooms available at Hotel Triton. Could you please provide me with your arrival date and the number of adults and children for your booking?",
+      "timestamp": "2026-07-30T15:23:08.874739"
+    },
+    {
+      "role": "user",
+      "message": "we have 5 family members and we arrive on 2nd August at 3 PM",
+      "timestamp": "2026-07-30T15:23:55.801030"
+    },
+    {
+      "role": "assistant",
+      "message": "Thank you for the details. To proceed with your booking, could you please confirm the number of children in your group?",
+      "timestamp": "2026-07-30T15:24:09.994023"
+    },
+    {
+      "role": "user",
+      "message": "no all are adults",
+      "timestamp": "2026-07-30T15:24:32.100768"
+    },
+    {
+      "role": "assistant",
+      "message": "Great! I have your booking details: 5 adults arriving on 2nd August at 3 PM for 2 days. To finalize your booking, please fill out the enquiry form, and our team will contact you shortly.",
+      "timestamp": "2026-07-30T15:24:41.093611"
+    }
+  ],
+  "created_at": "2026-07-30T15:21:56.067050",
+  "last_active": "2026-07-30T15:24:32.100768"
+}
