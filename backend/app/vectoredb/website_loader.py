@@ -12,6 +12,7 @@ import concurrent.futures
 import asyncio
 from playwright.async_api import async_playwright
 import nest_asyncio
+import os
 
 # Apply nest_asyncio to handle nested event loops
 nest_asyncio.apply()
