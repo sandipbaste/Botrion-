@@ -238,12 +238,55 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
             const statusResponse = await fetch(
               `${API_URL}/api/training/wait/${newWebsiteId}?timeout=${WAIT_TIMEOUT_S}`,
               {
-                headers: { Authorization: `Bearer ${token}` },
-                signal: controller.signal
+                  headers: {
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                  },
+                  signal: controller.signal
               }
-            );
+          );
 
-            const statusData = await statusResponse.json();
+          // Handle temporary Render/server errors
+          if (
+              statusResponse.status === 502 ||
+              statusResponse.status === 503 ||
+              statusResponse.status === 504
+          ) {
+              console.warn(
+                  `Temporary server error: ${statusResponse.status}`
+              );
+
+              failures += 1;
+
+              if (failures >= MAX_FAILURES) {
+                  giveUp(
+                      'The training server is temporarily unavailable. ' +
+                      'Please try again later.'
+                  );
+                  return;
+              }
+
+              await new Promise(resolve =>
+                  setTimeout(resolve, 5000)
+              );
+
+              continue;
+          }
+
+          // Handle expired login
+          if (statusResponse.status === 401) {
+              giveUp('Your session has expired. Please login again.');
+              return;
+          }
+
+          // Handle other HTTP errors
+          if (!statusResponse.ok) {
+              throw new Error(
+                  `Training status request failed: ${statusResponse.status}`
+              );
+          }
+
+          const statusData = await statusResponse.json();
 
             // Cancelled while the request was in flight
             if (session !== waitSessionRef.current) return;
