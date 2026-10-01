@@ -415,7 +415,7 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
     }
   }
   
-
+  }
   // Stop waiting when the component unmounts
   useEffect(() => {
     return () => {
@@ -619,5 +619,5 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
     </div>
   );
 };
-}
+
 export default TrainingInterface;
