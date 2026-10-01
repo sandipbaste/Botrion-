@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from datetime import datetime
 import os
+import asyncio
 import json
 import uuid
 import threading
@@ -522,77 +523,140 @@ async def train_chatbot(
         )
         
 
-@router.get("/training-status/{website_id}")
-async def training_status_compat(website_id: str):
-    """Compatibility endpoint for /api/training-status/{website_id}"""
-    return await get_training_status(website_id)      
+# @router.get("/training-status/{website_id}")
+# async def training_status_compat(website_id: str):
+#     """Compatibility endpoint for /api/training-status/{website_id}"""
+#     return await get_training_status(website_id)      
       
       
 # ============ TRAINING STATUS ENDPOINTS ============
 # For /api/training/status/{website_id}
-@router.get("/status/{website_id}")
-async def get_training_status(website_id: str):
-    """Get training status for a website"""
-    try:
-        if website_id not in training_status:
-            website_dir = os.path.join("data", website_id)
-            if os.path.exists(website_dir):
-                info_file = os.path.join(website_dir, "training_info.json")
-                if os.path.exists(info_file):
-                    with open(info_file, 'r', encoding='utf-8') as f:
-                        status_info = json.load(f)
+# @router.get("/status/{website_id}")
+# async def get_training_status(website_id: str):
+#     """Get training status for a website"""
+#     try:
+#         if website_id not in training_status:
+#             website_dir = os.path.join("data", website_id)
+#             if os.path.exists(website_dir):
+#                 info_file = os.path.join(website_dir, "training_info.json")
+#                 if os.path.exists(info_file):
+#                     with open(info_file, 'r', encoding='utf-8') as f:
+#                         status_info = json.load(f)
                     
-                    if 'progress' not in status_info:
-                        if status_info.get('status') == 'completed':
-                            status_info['progress'] = 100
-                        elif status_info.get('status') == 'error':
-                            status_info['progress'] = 0
-                        else:
-                            status_info['progress'] = 50
+#                     if 'progress' not in status_info:
+#                         if status_info.get('status') == 'completed':
+#                             status_info['progress'] = 100
+#                         elif status_info.get('status') == 'error':
+#                             status_info['progress'] = 0
+#                         else:
+#                             status_info['progress'] = 50
                     
-                    return {
-                        "success": True,
-                        **status_info
-                    }
+#                     return {
+#                         "success": True,
+#                         **status_info
+#                     }
             
-            return {
-                "success": False,
-                "error": "Training not found",
-                "message": f"No training found for website ID: {website_id}",
-                "timestamp": datetime.now().isoformat()
-            }
+#             return {
+#                 "success": False,
+#                 "error": "Training not found",
+#                 "message": f"No training found for website ID: {website_id}",
+#                 "timestamp": datetime.now().isoformat()
+#             }
         
-        status = training_status[website_id].copy()
+#         status = training_status[website_id].copy()
         
-        if status.get('progress') is None:
-            if status.get('status') == 'completed':
-                status['progress'] = 100
-            elif status.get('status') == 'error':
-                status['progress'] = 0
-            else:
-                status['progress'] = 50
+#         if status.get('progress') is None:
+#             if status.get('status') == 'completed':
+#                 status['progress'] = 100
+#             elif status.get('status') == 'error':
+#                 status['progress'] = 0
+#             else:
+#                 status['progress'] = 50
         
-        return {
-            "success": True,
-            **status
-        }
+#         return {
+#             "success": True,
+#             **status
+#         }
         
-    except Exception as e:
-        print(f"  Training status error: {str(e)}")
-        return {
-            "success": False,
-            "error": "Internal server error",
-            "message": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
+#     except Exception as e:
+#         print(f"  Training status error: {str(e)}")
+#         return {
+#             "success": False,
+#             "error": "Internal server error",
+#             "message": str(e),
+#             "timestamp": datetime.now().isoformat()
+#         }
 
 
 # ============ COMPATIBILITY ROUTES FOR FRONTEND ============
 # Frontend calls /api/training-status/{website_id}
 # So we need to add this route
+# @router.get("/training-status/{website_id}")
+# async def get_training_status_compat(website_id: str):
+#     """Compatibility endpoint for /api/training-status/{website_id}"""
+#     return await get_training_status(website_id)   
+
+
+
+def _status_from_db(website_id: str, user_id: int):
+    """Status is kept in memory only. If it is gone (restart/crash), use the DB row."""
+    try:
+        for site in db_manager.get_user_websites(user_id) or []:
+            if site.get("website_id") != website_id:
+                continue
+            db_status = str(site.get("status") or "").lower()
+            if db_status in ("active", "completed", "trained"):
+                return {"success": True, "website_id": website_id,
+                        "website_name": site.get("website_name"),
+                        "status": "completed", "progress": 100,
+                        "message": "Training completed successfully!"}
+            return {"success": True, "website_id": website_id,
+                    "website_name": site.get("website_name"),
+                    "status": "error", "progress": 0,
+                    "message": "Training did not finish (server restarted or failed). Please delete this chatbot and train again."}
+    except Exception as e:
+        print(f"Status DB fallback error: {e}")
+    return None
+
+
+def _build_status(website_id: str, user_id: int):
+    status = training_status.get(website_id)
+    if status is not None:
+        if status.get("user_id") not in (None, user_id):
+            return {"success": False, "error": "Training not found",
+                    "message": f"No training found for website ID: {website_id}"}
+        status = status.copy()
+        if status.get("progress") is None:
+            status["progress"] = 100 if status.get("status") == "completed" else (0 if status.get("status") == "error" else 50)
+        return {"success": True, **status}
+
+    from_db = _status_from_db(website_id, user_id)
+    if from_db:
+        return from_db
+    return {"success": False, "error": "Training not found",
+            "message": f"No training found for website ID: {website_id}",
+            "timestamp": datetime.now().isoformat()}
+
+
+@router.get("/status/{website_id}")
+async def get_training_status(website_id: str, user: dict = Depends(get_current_user)):
+    return _build_status(website_id, user["id"])
+
+
+@router.get("/wait/{website_id}")
+async def wait_for_training(website_id: str, timeout: int = 25, user: dict = Depends(get_current_user)):
+    """Long-poll: hold the request until training finishes/fails, or timeout."""
+    deadline = time.time() + max(1, min(timeout, 55))
+    while time.time() < deadline:
+        status = training_status.get(website_id)
+        if status is None or status.get("status") in ("completed", "error"):
+            break
+        await asyncio.sleep(1)
+    return _build_status(website_id, user["id"])
+
+
 @router.get("/training-status/{website_id}")
-async def get_training_status_compat(website_id: str):
-    """Compatibility endpoint for /api/training-status/{website_id}"""
-    return await get_training_status(website_id)      
+async def training_status_compat(website_id: str, user: dict = Depends(get_current_user)):
+    return _build_status(website_id, user["id"])   
         
         

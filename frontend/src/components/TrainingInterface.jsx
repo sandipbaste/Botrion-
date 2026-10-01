@@ -10,6 +10,15 @@ import { toast } from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
+// Long-polling settings.
+// Each request to /api/training/wait/<id> is held open by the server (up to
+// WAIT_TIMEOUT_S seconds) and returns as soon as training completes or fails.
+// So a 2-3 minute training makes only ~5-7 requests instead of dozens.
+const WAIT_TIMEOUT_S = 25;
+const MAX_WAIT_MS = 15 * 60 * 1000;   // give up after 15 minutes
+const MAX_FAILURES = 5;               // give up after 5 failed responses in a row
+const MIN_GAP_MS = 3000;              // safety: never loop faster than this
+
 const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComplete, isProcessing }) => {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteName, setWebsiteName] = useState('');
@@ -26,9 +35,19 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
   const progressInterval = useRef(null);
   const startTimeRef = useRef(null);
   const currentProgressRef = useRef(0);
-  const pollIntervalRef = useRef(null);
+  const waitSessionRef = useRef(0);    // bumping this cancels any running wait loop
+  const waitAbortRef = useRef(null);   // aborts the in-flight request
 
-  // Continuous smooth progress function - NEVER STOPS
+  // Stop the wait loop (safe to call multiple times)
+  const stopWaiting = () => {
+    waitSessionRef.current += 1;
+    if (waitAbortRef.current) {
+      waitAbortRef.current.abort();
+      waitAbortRef.current = null;
+    }
+  };
+
+  // Continuous smooth progress function
   const continuousProgress = () => {
     if (currentProgressRef.current < 99) {
       const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
@@ -146,6 +165,9 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
       return;
     }
     
+    // Make sure no old wait loop is still running
+    stopWaiting();
+    
     onTrainingStart();
     
     // Reset all progress values
@@ -187,73 +209,140 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
       const newWebsiteId = data.website_id;
       setWebsiteId(newWebsiteId);
       
-      // Poll for training status
-      const pollStatus = async () => {
-        try {
-          const statusResponse = await fetch(`${API_URL}/api/training/status/${newWebsiteId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          const statusData = await statusResponse.json();
-          
-          if (statusData.success) {
-            // Update pages extracted
-            if (statusData.data_points) {
-              setPagesExtracted(statusData.data_points);
-            }
-            
-            // Update progress from server if available
-            if (statusData.progress !== undefined && statusData.progress > 0) {
-              currentProgressRef.current = Math.max(currentProgressRef.current, statusData.progress);
-              setTrainingProgress(currentProgressRef.current);
-            }
-            
-            // Check if training is complete or errored
-            if (statusData.status === 'completed') {
-              clearInterval(pollIntervalRef.current);
-              
-              currentProgressRef.current = 100;
-              setTrainingProgress(100);
-              setCurrentStage('Completed');
-              setStageDetails('Training completed successfully!');
-              setCurrentStep(12);
-              setTrainingComplete(true);
-              
-              setTimeout(() => {
-                const websiteObj = {
-                  website_id: newWebsiteId,
-                  website_name: statusData.website_name || websiteName || websiteUrl,
-                  website_url: websiteUrl,
-                  admin_email: contactEmail,
-                  status: 'active',
-                  created_at: new Date().toISOString(),
-                  data_points: statusData.data_points || pagesExtracted || 0,
-                  upload_count: 0
-                };
-                
-                onWebsiteTrained(websiteObj);
-                toast.success('🤖 Chatbot trained successfully!');
+      // ---------- Wait for training to finish (long-polling) ----------
+      const session = waitSessionRef.current;   // this loop is valid only while this matches
+      const startedAt = Date.now();
+      let failures = 0;
+
+      const giveUp = (message) => {
+        stopWaiting();
+        setCurrentStage('Error');
+        setStageDetails(message);
+        toast.error(message);
+        onTrainingComplete();
+      };
+
+      const waitForTraining = async () => {
+        while (session === waitSessionRef.current) {
+          if (Date.now() - startedAt > MAX_WAIT_MS) {
+            giveUp('Training is taking too long. Please check My Websites later.');
+            return;
+          }
+
+          const requestStarted = Date.now();
+          const controller = new AbortController();
+          waitAbortRef.current = controller;
+
+          try {
+            const statusResponse = await fetch(
+              `${API_URL}/api/training/wait/${newWebsiteId}?timeout=${WAIT_TIMEOUT_S}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal
+              }
+            );
+
+            const statusData = await statusResponse.json();
+
+            // Cancelled while the request was in flight
+            if (session !== waitSessionRef.current) return;
+
+            if (statusData.success) {
+              failures = 0;
+
+              if (statusData.data_points !== undefined) {
+                setPagesExtracted(statusData.data_points);
+              }
+
+              if (statusData.progress !== undefined && statusData.progress > 0) {
+                currentProgressRef.current = Math.max(
+                  currentProgressRef.current,
+                  statusData.progress
+                );
+                setTrainingProgress(currentProgressRef.current);
+              }
+
+              // =========================
+              // TRAINING COMPLETED
+              // =========================
+              if (statusData.status === 'completed') {
+                stopWaiting();
+
+                currentProgressRef.current = 100;
+                setTrainingProgress(100);
+
+                setCurrentStage('Completed');
+                setStageDetails('Training completed successfully!');
+                setCurrentStep(12);
+                setTrainingComplete(true);
+
+                setTimeout(() => {
+                  const websiteObj = {
+                    website_id: newWebsiteId,
+                    website_name:
+                      statusData.website_name ||
+                      websiteName ||
+                      websiteUrl,
+                    website_url: websiteUrl,
+                    admin_email: contactEmail,
+                    status: 'active',
+                    created_at: new Date().toISOString(),
+                    data_points: statusData.data_points || pagesExtracted || 0,
+                    upload_count: 0
+                  };
+
+                  onWebsiteTrained(websiteObj);
+                  toast.success('🤖 Chatbot trained successfully!');
+                  onTrainingComplete();
+                }, 500);
+
+                return;
+              }
+
+              // =========================
+              // TRAINING ERROR
+              // =========================
+              if (statusData.status === 'error') {
+                stopWaiting();
+
+                setCurrentStage('Error');
+                setStageDetails(statusData.message || 'Training failed');
+                toast.error(statusData.message || 'Training failed');
                 onTrainingComplete();
-              }, 500);
-              
-            } else if (statusData.status === 'error') {
-              clearInterval(pollIntervalRef.current);
-              setCurrentStage('Error');
-              setStageDetails(statusData.message || 'Training failed');
-              toast.error(statusData.message || 'Training failed');
-              onTrainingComplete();
+
+                return;
+              }
+            } else {
+              // success:false (e.g. "Training not found" after a server restart)
+              failures += 1;
+              if (failures >= MAX_FAILURES) {
+                giveUp(statusData.message || 'Training status not found');
+                return;
+              }
+            }
+          } catch (error) {
+            // Aborted on purpose (unmount / new training) - just stop
+            if (error.name === 'AbortError') return;
+            if (session !== waitSessionRef.current) return;
+
+            console.error('Error waiting for training:', error);
+
+            failures += 1;
+            if (failures >= MAX_FAILURES) {
+              giveUp('Lost connection to the server');
+              return;
             }
           }
-        } catch (error) {
-          console.error('Error polling status:', error);
+
+          // Safety: if the server answered instantly, don't loop faster than MIN_GAP_MS
+          const elapsed = Date.now() - requestStarted;
+          if (elapsed < MIN_GAP_MS) {
+            await new Promise((resolve) => setTimeout(resolve, MIN_GAP_MS - elapsed));
+          }
         }
       };
-      
-      // Start polling - check every 3 seconds
-      pollIntervalRef.current = setInterval(pollStatus, 3000);
-      
-      // Also poll immediately
-      setTimeout(pollStatus, 500);
+
+      waitForTraining();
       
     } catch (error) {
       console.error('Training error:', error);
@@ -262,12 +351,10 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
     }
   };
 
-  // Cleanup polling on unmount
+  // Stop waiting when the component unmounts
   useEffect(() => {
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      stopWaiting();
     };
   }, []);
 
