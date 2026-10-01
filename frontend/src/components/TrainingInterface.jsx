@@ -14,10 +14,11 @@ const API_URL = import.meta.env.VITE_API_BASE_URL;
 // Each request to /api/training/wait/<id> is held open by the server (up to
 // WAIT_TIMEOUT_S seconds) and returns as soon as training completes or fails.
 // So a 2-3 minute training makes only ~5-7 requests instead of dozens.
-const WAIT_TIMEOUT_S = 25;
-const MAX_WAIT_MS = 15 * 60 * 1000;   // give up after 15 minutes
-const MAX_FAILURES = 5;               // give up after 5 failed responses in a row
-const MIN_GAP_MS = 3000;              // safety: never loop faster than this
+const WAIT_TIMEOUT_S = 20;
+const MAX_WAIT_MS = 20 * 60 * 1000;  // 20 minutes
+const MAX_FAILURES = 15;              // tolerate temporary failures
+const MIN_GAP_MS = 3000;
+
 
 const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComplete, isProcessing }) => {
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -329,8 +330,11 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
 
             failures += 1;
             if (failures >= MAX_FAILURES) {
-              giveUp('Lost connection to the server');
-              return;
+                giveUp(
+                    'Unable to check training status right now. ' +
+                    'Your training may still be running. Please check My Websites later.'
+                );
+                return;
             }
           }
 
@@ -342,14 +346,32 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
         }
       };
 
-      waitForTraining();
-      
-    } catch (error) {
-      console.error('Training error:', error);
-      toast.error(error.message || 'Chatbot limit reached');
-      onTrainingComplete();
+    await waitForTraining();
+  }    
+  catch (error) {
+    if (error.name === 'AbortError') return;
+    if (session !== waitSessionRef.current) return;
+
+    console.error('Error waiting for training:', error);
+
+    failures += 1;
+
+    // Keep showing training progress during temporary network/server errors
+    if (failures < MAX_FAILURES) {
+        setStageDetails(
+            `Training is still running... reconnecting (${failures}/${MAX_FAILURES})`
+        );
     }
-  };
+
+    if (failures >= MAX_FAILURES) {
+        giveUp(
+            'Unable to connect to the training service. ' +
+            'The training may still be running. Please check My Websites later.'
+        );
+        return;
+    }
+  }
+  
 
   // Stop waiting when the component unmounts
   useEffect(() => {
@@ -554,5 +576,5 @@ const TrainingInterface = ({ onWebsiteTrained, onTrainingStart, onTrainingComple
     </div>
   );
 };
-
+}
 export default TrainingInterface;
