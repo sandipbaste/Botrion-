@@ -139,36 +139,36 @@ class ChatbotGenerator:
     // Session management
     const sessionManager = {{
         getSessionId() {{
-            let sessionId = localStorage.getItem('chatbot_session_id');
+            let sessionId = localStorage.getItem('chatbot_session_id_' + config.websiteId);
             if (!sessionId) {{
                 sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('chatbot_session_id', sessionId);
+                localStorage.setItem('chatbot_session_id_' + config.websiteId, sessionId);
             }}
             return sessionId;
         }},
         
         getUserInfo() {{
-            const info = localStorage.getItem('chatbot_user_info');
+            const info = localStorage.getItem('chatbot_user_info_' + config.websiteId);
             return info ? JSON.parse(info) : null;
         }},
         
         saveUserInfo(userInfo) {{
-            localStorage.setItem('chatbot_user_info', JSON.stringify(userInfo));
-            localStorage.setItem('chatbot_session_id', userInfo.session_id);
+            localStorage.setItem('chatbot_user_info_' + config.websiteId, JSON.stringify(userInfo));
+            localStorage.setItem('chatbot_session_id_' + config.websiteId, userInfo.session_id);
         }},
         
         clearSession() {{
-            localStorage.removeItem('chatbot_session_id');
-            localStorage.removeItem('chatbot_user_info');
-            localStorage.removeItem('chatbot_conversation_id');
+            localStorage.removeItem('chatbot_session_id_' + config.websiteId);
+            localStorage.removeItem('chatbot_user_info_' + config.websiteId);
+            localStorage.removeItem('chatbot_conversation_id_' + config.websiteId);
         }},
         
         saveConversationId(conversationId) {{
-            localStorage.setItem('chatbot_conversation_id', conversationId);
+            localStorage.setItem('chatbot_conversation_id_' + config.websiteId, conversationId);
         }},
         
         getConversationId() {{
-            return localStorage.getItem('chatbot_conversation_id');
+            return localStorage.getItem('chatbot_conversation_id_' + config.websiteId);
         }}
     }};
     

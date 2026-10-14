@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 import time
 import socket
+import re
 
 load_dotenv()
 
@@ -19,13 +20,20 @@ class DatabaseManager:
         self.user = os.getenv('DB_USER')
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
-        self.schema = os.getenv('DB_SCHEMA')
+        # Schema name: fall back to 'botrion' if DB_SCHEMA is missing from .env.
+        # (A missing value used to become 'SET search_path TO None', which silently
+        # makes every table 'not exist'.)
+        raw_schema = (os.getenv('DB_SCHEMA') or 'botrion').strip()
+        if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', raw_schema):
+            raise ValueError(f"Invalid DB_SCHEMA value: {raw_schema!r}")
+        self.schema = raw_schema
         self.connection = None
         
         print(f" DatabaseManager initialized")
         print(f" Host: {self.host}:{self.port}")
         print(f" Database: {self.database}")
         print(f" User: {self.user}")
+        print(f" Schema: {self.schema}")
 
     def get_connection(self, retry_count=3):
         """Get PostgreSQL database connection with retry logic"""
@@ -49,7 +57,7 @@ class DatabaseManager:
                     
                     # Set schema after connection
                     cursor = self.connection.cursor()
-                    cursor.execute(f"SET search_path TO {self.schema}")
+                    cursor.execute(f"SET search_path TO {self.schema}, public")
                     cursor.close()
                     
                     print("✅ Database connected successfully")
@@ -57,7 +65,9 @@ class DatabaseManager:
                 
                 # Test existing connection
                 cursor = self.connection.cursor()
-                cursor.execute("SELECT 1")
+                # Re-apply the schema every time: doubles as the liveness check and
+                # survives session resets (poolers, reconnects, other code closing it)
+                cursor.execute(f"SET search_path TO {self.schema}, public")
                 cursor.close()
                 return self.connection
                 
@@ -72,6 +82,27 @@ class DatabaseManager:
         
         raise last_error or Exception("Failed to connect to database after retries")
     
+    def new_connection(self):
+        """Open a separate, short-lived connection (safe to close).
+
+        Use this instead of get_connection() whenever the caller needs to call
+        conn.close(), so the shared self.connection is never closed by accident.
+        """
+        conn = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            database=self.database,
+            connect_timeout=60,
+            sslmode='require'
+        )
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute(f"SET search_path TO {self.schema}, public")
+        cur.close()
+        return conn
+
     def get_cursor(self, dict_cursor=True):
         """Get database cursor"""
         conn = self.get_connection()
@@ -85,7 +116,9 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            cursor.execute(query, params or ())
+            # Send search_path together with the query so it can never be lost
+            # between two round trips
+            cursor.execute(f"SET search_path TO {self.schema}, public; {query}", params or ())
             
             result = None
             if fetch_one:
@@ -353,10 +386,13 @@ class DatabaseManager:
             where_clause = " AND ".join(conditions) if conditions else "1=1"
             
             query = f"""
-                SELECT * FROM chat_history 
-                WHERE {where_clause}
+                SELECT * FROM (
+                    SELECT * FROM chat_history
+                    WHERE {where_clause}
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                ) latest
                 ORDER BY created_at ASC
-                LIMIT %s
             """
             params.append(limit)
             
@@ -383,6 +419,41 @@ class DatabaseManager:
             return self.execute_query(query, (website_id, limit), fetch_all=True) or []
         except Exception as e:
             print(f"  Error getting conversations: {e}")
+            return []
+
+    def get_chat_users(self, website_id: str) -> List[Dict[str, Any]]:
+        """Distinct chat users (by email) for a website"""
+        try:
+            query = """
+                SELECT user_email AS email,
+                       MAX(user_name) AS name,
+                       MAX(user_phone) AS phone,
+                       COUNT(*) FILTER (WHERE role IN ('user', 'assistant')) AS message_count,
+                       MAX(created_at) AS last_message_date
+                FROM chat_history
+                WHERE website_id = %s AND COALESCE(user_email, '') <> ''
+                GROUP BY user_email
+                HAVING COUNT(*) FILTER (WHERE role IN ('user', 'assistant')) > 0
+                ORDER BY last_message_date DESC
+            """
+            return self.execute_query(query, (website_id,), fetch_all=True) or []
+        except Exception as e:
+            print(f"  Error getting chat users: {e}")
+            return []
+
+    def get_user_chat_messages(self, website_id: str, email: str, limit: int = 500) -> List[Dict[str, Any]]:
+        """All chat messages of one user (by email) on one website"""
+        try:
+            query = """
+                SELECT id, conversation_id, session_id, role, message, created_at
+                FROM chat_history
+                WHERE website_id = %s AND user_email = %s AND role IN ('user', 'assistant')
+                ORDER BY created_at ASC
+                LIMIT %s
+            """
+            return self.execute_query(query, (website_id, email, limit), fetch_all=True) or []
+        except Exception as e:
+            print(f"  Error getting user chat messages: {e}")
             return []
 
     def get_full_conversation(self, conversation_id: str) -> List[Dict[str, Any]]:

@@ -224,7 +224,7 @@ async def get_user_growth_data(admin: dict = Depends(get_current_admin)):
 async def get_all_subscription_plans(admin: dict = Depends(get_current_admin)):
     """Get all subscription plans with admin details (admin only)"""
     try:
-        conn = db_manager.get_connection()
+        conn = db_manager.new_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute('SELECT * FROM subscription_plans ORDER BY price ASC')
@@ -264,7 +264,7 @@ async def get_all_subscription_plans(admin: dict = Depends(get_current_admin)):
 async def get_subscription_statistics(admin: dict = Depends(get_current_admin)):
     """Get subscription statistics (admin only)"""
     try:
-        conn = db_manager.get_connection()
+        conn = db_manager.new_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute('''

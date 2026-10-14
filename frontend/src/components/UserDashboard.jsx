@@ -231,7 +231,7 @@ const checkSubscriptionForTraining = async () => {
   const loadWebsiteDetails = async (websiteId) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_URL}/api/website/${websiteId}`, {
+      const response = await fetch(`${API_URL}/api/websites/${websiteId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -383,7 +383,7 @@ const checkSubscriptionForTraining = async () => {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_URL}/api/website/${websiteId}`, {
+      const response = await fetch(`${API_URL}/api/websites/${websiteId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

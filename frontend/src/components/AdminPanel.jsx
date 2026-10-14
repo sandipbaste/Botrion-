@@ -496,7 +496,8 @@ const AdminPanel = ({ user }) => {
         const websitesWithDetails = await Promise.all(
           userWebsitesList.map(async (website) => {
             try {
-              const websiteDetailsResponse = await fetch(`${API_URL}/api/website/${website.website_id}`, {
+              // ✅ CORRECT
+              const websiteDetailsResponse = await fetch(`${API_URL}/api/websites/${website.website_id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               });
               
@@ -594,7 +595,7 @@ const AdminPanel = ({ user }) => {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_URL}/api/website/${websiteId}`, {
+      const response = await fetch(`${API_URL}/api/websites/${websiteId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -767,7 +768,7 @@ const AdminPanel = ({ user }) => {
     try {
       const token = localStorage.getItem('access_token');
       
-      const response = await fetch(`${API_URL}/api/website/${website.website_id}`, {
+      const response = await fetch(`${API_URL}/api/websites/${website.website_id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

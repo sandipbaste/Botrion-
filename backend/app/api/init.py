@@ -6,6 +6,7 @@ from datetime import datetime
 
 from .auth import router as auth_router
 from .chat import router as chat_router
+from .chat import get_chat_users, get_user_chat_messages
 from .contact import router as contact_router
 from .payments import router as payments_router
 from .training import router as training_router
@@ -56,9 +57,9 @@ async def delete_website_compat(website_id: str, user: dict = Depends(get_curren
 
 # /api/delete-file/{id} -> /api/uploads/{id} DELETE
 @api_router.delete("/api/delete-file/{website_id}")
-async def delete_file_compat(website_id: str, request: dict):
+async def delete_file_compat(website_id: str, request: dict, user: dict = Depends(get_current_user)):
     from .uploads import delete_uploaded_file
-    return await delete_uploaded_file(website_id, request, user=Depends(get_current_user))
+    return await delete_uploaded_file(website_id, request, user=user)
 
 # /api/reindex/{id} -> /api/uploads/reindex/{id}
 @api_router.post("/api/reindex/{website_id}")
@@ -78,6 +79,21 @@ async def generate_script_compat(website_id: str, user: dict = Depends(get_curre
 async def website_stats_compat(website_id: str):
     from .websites import get_website_statistics
     return await get_website_statistics(website_id)
+
+# /api/chat-users/{id} -> /api/chat/users/{id}   (Admin panel + User dashboard)
+@api_router.get("/api/chat-users/{website_id}")
+async def chat_users_compat(website_id: str, user: dict = Depends(get_current_user)):
+    return await get_chat_users(website_id, user)
+
+# /api/user-chat/{id}?email= -> /api/chat/user-messages/{id}?email=
+@api_router.get("/api/user-chat/{website_id}")
+async def user_chat_compat(
+    website_id: str,
+    email: str,
+    limit: int = 500,
+    user: dict = Depends(get_current_user)
+):
+    return await get_user_chat_messages(website_id, email, limit, user)
 
 # /api/upload/{id} -> /api/uploads/{id}
 @api_router.post("/api/upload/{website_id}")

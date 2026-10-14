@@ -177,7 +177,7 @@ const Reports = () => {
       const websitesWithDetails = await Promise.all(
         userWebsites.map(async (website) => {
           try {
-            const websiteDetailsResponse = await fetch(`${API_URL}/api/website/${website.website_id}`, {
+            const websiteDetailsResponse = await fetch(`${API_URL}/api/websites/${website.website_id}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             

@@ -141,6 +141,8 @@ async def chat_with_website(request: ChatRequest):
             
             print(f" Verified embeddings in Qdrant Cloud for website: {request.website_id}")
             
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"  Error checking Qdrant: {e}")
             raise HTTPException(
@@ -269,13 +271,22 @@ async def chat_with_website(request: ChatRequest):
         )
 
 @router.get("/history/{website_id}")
-async def get_chat_history(website_id: str, conversation_id: Optional[str] = None, limit: int = 50):
-    """Get chat history for website or conversation"""
+async def get_chat_history(
+    website_id: str,
+    conversation_id: Optional[str] = None,
+    limit: int = 50,
+    user: dict = Depends(get_current_user)
+):
+    """Get chat history for website or conversation (admin: any website, user: own websites)"""
     try:
+        _check_website_access(website_id, user)
+
         if conversation_id:
-            history = db_manager.get_chat_history(website_id, conversation_id, limit)
+            history = db_manager.get_chat_history(
+                website_id=website_id, conversation_id=conversation_id, limit=limit
+            )
         else:
-            history = db_manager.get_chat_history(website_id, limit=limit)
+            history = db_manager.get_chat_history(website_id=website_id, limit=limit)
         
         return {
             "success": True,
@@ -284,9 +295,50 @@ async def get_chat_history(website_id: str, conversation_id: Optional[str] = Non
             "history": history,
             "count": len(history)
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"  Get chat history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+def _check_website_access(website_id: str, user: dict):
+    """Admins can read every website; users only their own"""
+    website = db_manager.get_website(website_id)
+    if not website:
+        raise HTTPException(status_code=404, detail="Website not found")
+    if user.get('role') != 'admin' and website.get('user_id') != user['id']:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    return website
+
+@router.get("/users/{website_id}")
+async def get_chat_users(website_id: str, user: dict = Depends(get_current_user)):
+    """List users who chatted on a website (admin: any website, user: own websites)"""
+    _check_website_access(website_id, user)
+    users = db_manager.get_chat_users(website_id)
+    return {
+        "success": True,
+        "website_id": website_id,
+        "users": users,
+        "count": len(users)
+    }
+
+@router.get("/user-messages/{website_id}")
+async def get_user_chat_messages(
+    website_id: str,
+    email: str,
+    limit: int = 500,
+    user: dict = Depends(get_current_user)
+):
+    """All messages of one chat user on a website"""
+    _check_website_access(website_id, user)
+    messages = db_manager.get_user_chat_messages(website_id, email, limit)
+    return {
+        "success": True,
+        "website_id": website_id,
+        "email": email,
+        "messages": messages,
+        "count": len(messages)
+    }
 
 @router.post("/send-report")
 async def send_chat_report(request: SendChatReportRequest):

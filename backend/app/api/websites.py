@@ -138,6 +138,8 @@ async def get_website_info(website_id: str):
             **website
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"  Get website info error: {str(e)}")
         raise HTTPException(
@@ -237,6 +239,8 @@ async def generate_script(website_id: str, user: dict = Depends(get_current_user
             
             print(f" Verified embeddings in Qdrant Cloud for website: {website_id}")
             
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"  Error checking Qdrant: {e}")
             raise HTTPException(
@@ -347,7 +351,7 @@ async def delete_website(website_id: str, user: dict = Depends(get_current_user)
         
         # Delete from database
         try:
-            conn = db_manager.get_connection()
+            conn = db_manager.new_connection()
             cursor = conn.cursor()
             cursor.execute("DELETE FROM websites WHERE website_id = %s", (website_id,))
             conn.commit()
