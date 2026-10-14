@@ -12,7 +12,7 @@ import httpx
 from app.database.database import db_manager
 from app.services.email_service import email_service
 from app.services.payment_service import payment_service
-from app.agents.agents import ChatAgent
+from app.agents.agents import chat_agent
 from .auth import get_current_user
 
 router = APIRouter()
@@ -168,21 +168,16 @@ async def chat_with_website(request: ChatRequest):
                 save_session_data(request.session_id, session_data)
         
         try:
-            chat_agent = ChatAgent()
-            # Use asyncio timeout to prevent hanging
-            response = await asyncio.wait_for(
-                chat_agent.chat(
-                    question=request.question,
-                    website_id=request.website_id,
-                    conversation_id=request.conversation_id,
-                    user_info=request.user_info,
-                    session_id=request.session_id,
-                    user_id=user_id
-                ),
-                timeout=10.0  # 10 second timeout
+            response = await chat_agent.chat(
+                question=request.question,
+                website_id=request.website_id,
+                conversation_id=request.conversation_id,
+                user_info=request.user_info,
+                session_id=request.session_id,
+                user_id=user_id
             )
         except asyncio.TimeoutError:
-            response = "I'm processing your request. Please wait a moment."
+            response = "I'm sorry, your request is taking longer than expected. Please try again in a moment."
             
             try:
                 from app.vectoredb.embedding_handler import EmbeddingHandler
